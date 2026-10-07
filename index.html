@@ -1480,28 +1480,68 @@ function syncFromDom(){
   renderPlan(); planSave();
 }
 
-/* map */
-function renderMap(){
-  const box = $("#planMap");
-  if(!window.L){ box.innerHTML = '<div class="map-msg">지도를 불러오지 못했어요. 인터넷 연결을 확인해주세요.</div>'; return; }
-  if(!planMap){
-    planMap = L.map(box, {zoomControl: true, scrollWheelZoom: false}).setView([35.15, 129.07], 11);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(planMap);
-    planLayer = L.layerGroup().addTo(planMap);
-    planMap.on("click", e => {
-      if(!locateId) return;
-      const [d, i] = findItem(locateId); locateId = null; box.classList.remove("plan-locate");
-      if(d){ d.items[i].lat = +e.latlng.lat.toFixed(5); d.items[i].lng = +e.latlng.lng.toFixed(5); renderPlan(); planSave(); }
-    });
-  }
-  planLayer.clearLayers();
-  const pts = [];
+/* map: 카카오맵 우선, 실패하면 OpenStreetMap(Leaflet) */
+let mapKind = null, mapInit = null, kObjs = [];
+function setLocated(lat, lng){
+  const [d, i] = findItem(locateId); locateId = null; $("#planMap").classList.remove("plan-locate");
+  if(d){ d.items[i].lat = +lat.toFixed(5); d.items[i].lng = +lng.toFixed(5); renderPlan(); planSave(); }
+}
+function initMap(){
+  if(mapInit) return mapInit;
+  mapInit = (async () => {
+    const box = $("#planMap");
+    if(await loadKakao() && window.kakao?.maps?.Map){
+      planMap = new kakao.maps.Map(box, {center: new kakao.maps.LatLng(35.15, 129.07), level: 8});
+      planMap.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+      kakao.maps.event.addListener(planMap, "click", e => { if(locateId) setLocated(e.latLng.getLat(), e.latLng.getLng()); });
+      return mapKind = "kakao";
+    }
+    if(window.L){
+      planMap = L.map(box, {zoomControl: true, scrollWheelZoom: false}).setView([35.15, 129.07], 11);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(planMap);
+      planLayer = L.layerGroup().addTo(planMap);
+      planMap.on("click", e => { if(locateId) setLocated(e.latlng.lat, e.latlng.lng); });
+      return mapKind = "leaflet";
+    }
+    box.innerHTML = '<div class="map-msg">지도를 불러오지 못했어요. 인터넷 연결을 확인해주세요.</div>';
+    return mapKind = "none";
+  })();
+  return mapInit;
+}
+async function renderMap(){
+  const kind = await initMap(); if(kind === "none") return;
+  const groups = [];
   plan.days.forEach((d, i) => {
     if(planDay !== -1 && planDay !== i) return;
-    const geo = d.items.filter(hasGeo), col = DAY_COLORS[i % 4];
+    groups.push({d, col: DAY_COLORS[i % 4], geo: d.items.filter(hasGeo)});
+  });
+  const pts = groups.flatMap(g => g.geo.map(x => [x.lat, x.lng]));
+  if(kind === "kakao"){
+    kObjs.forEach(o => o.setMap(null)); kObjs = [];
+    groups.forEach(({d, col, geo}) => {
+      if(geo.length > 1){
+        const pl = new kakao.maps.Polyline({path: geo.map(x => new kakao.maps.LatLng(x.lat, x.lng)), strokeWeight: 4, strokeColor: col, strokeOpacity: .9, strokeStyle: "shortdash"});
+        pl.setMap(planMap); kObjs.push(pl);
+      }
+      geo.forEach((it, k) => {
+        const ov = new kakao.maps.CustomOverlay({position: new kakao.maps.LatLng(it.lat, it.lng), xAnchor: .5, yAnchor: .5, zIndex: 3,
+          content: `<div class="pin" style="background:${col}" title="${esc(d.label + " · " + (k + 1) + ". " + it.name)}">${k + 1}</div>`});
+        ov.setMap(planMap); kObjs.push(ov);
+      });
+    });
+    setTimeout(() => {
+      planMap.relayout();
+      if(pts.length > 1){ const bd = new kakao.maps.LatLngBounds(); pts.forEach(p => bd.extend(new kakao.maps.LatLng(p[0], p[1]))); planMap.setBounds(bd, 40, 40, 40, 40); }
+      else if(pts.length === 1){ planMap.setLevel(4); planMap.setCenter(new kakao.maps.LatLng(pts[0][0], pts[0][1])); }
+      else { planMap.setLevel(8); planMap.setCenter(new kakao.maps.LatLng(35.15, 129.07)); }
+    }, 30);
+    return;
+  }
+  planLayer.clearLayers();
+  groups.forEach(({d, col, geo}) => {
     geo.forEach((it, k) => {
       const m = L.marker([it.lat, it.lng], {icon: L.divIcon({className: "", html: `<div class="pin" style="background:${col}">${k + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14]})});
-      m.bindTooltip(`${d.label} · ${k + 1}. ${it.name}`); planLayer.addLayer(m); pts.push([it.lat, it.lng]);
+      m.bindTooltip(`${d.label} · ${k + 1}. ${it.name}`); planLayer.addLayer(m);
     });
     if(geo.length > 1) planLayer.addLayer(L.polyline(geo.map(x => [x.lat, x.lng]), {color: col, weight: 3, dashArray: "6 6", opacity: .9}));
   });
