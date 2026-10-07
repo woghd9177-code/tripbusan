@@ -9,20 +9,23 @@
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#F2F6F8; --surface:#FFFFFF; --ink:#13262F; --muted:#5B6F79; --line:#D3E0E6;
-  --sea:#11698E; --sea-soft:#DCEEF5; --sun:#F2B705; --sun-ink:#3A2C00; --danger:#B3261E;
+  --bg:#F4FBFE; --surface:#FFFFFF; --ink:#0B2C3D; --muted:#4A6878; --line:#CFE6F0;
+  --sea:#0A8BD6; --sea-deep:#0567A6; --sea-soft:#E1F3FB; --sun:#FFD23F; --sun-edge:#E9B500; --sun-ink:#3A2A00; --danger:#C4321F;
+  --sky-top:#63D3F3; --sky-bot:#0A8BD6;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0D1A21; --surface:#14252E; --ink:#E6EEF1; --muted:#93A8B2; --line:#25404C;
-    --sea:#5FB3D6; --sea-soft:#183746; --sun:#F2C230; --sun-ink:#2A2000; --danger:#F2B8B5;
+    --bg:#071C27; --surface:#0E2A38; --ink:#E7F5FB; --muted:#9BBBC9; --line:#1E4557;
+    --sea:#43B8F0; --sea-deep:#7CCFF5; --sea-soft:#123A4D; --sun:#FFD23F; --sun-edge:#C99A00; --sun-ink:#2A1F00; --danger:#FFB4A8;
+    --sky-top:#0D6E9E; --sky-bot:#063B57;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0D1A21; --surface:#14252E; --ink:#E6EEF1; --muted:#93A8B2; --line:#25404C;
-  --sea:#5FB3D6; --sea-soft:#183746; --sun:#F2C230; --sun-ink:#2A2000; --danger:#F2B8B5;
+  --bg:#071C27; --surface:#0E2A38; --ink:#E7F5FB; --muted:#9BBBC9; --line:#1E4557;
+    --sea:#43B8F0; --sea-deep:#7CCFF5; --sea-soft:#123A4D; --sun:#FFD23F; --sun-edge:#C99A00; --sun-ink:#2A1F00; --danger:#FFB4A8;
+    --sky-top:#0D6E9E; --sky-bot:#063B57;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -137,7 +140,8 @@ table.grid th{background:var(--sea-soft);white-space:nowrap}
 .spot-empty b{display:block;font-family:"Black Han Sans","Noto Sans KR",sans-serif;font-weight:400;font-size:24px;color:var(--sea);margin-bottom:8px}
 @media (min-width:900px){
   .wrap{max-width:1360px}
-  .hero,#dashView{max-width:720px}
+  #dashView{max-width:720px}
+
   .layout{display:grid;grid-template-columns:minmax(0,1fr) clamp(400px,46%,620px);gap:32px;align-items:start}
   .layout[hidden]{display:none!important}
   .spot-panel,.spot-panel[hidden]{display:block!important;position:sticky;top:calc(76px + env(safe-area-inset-top,0px));right:auto;left:auto;bottom:auto;
@@ -152,6 +156,46 @@ table.grid th{background:var(--sea-soft);white-space:nowrap}
   .spot-panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:68%;border-radius:18px 18px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
 }
 [hidden]{display:none!important}
+/* ===== 청량 테마 ===== */
+header.hero{position:relative;margin-top:16px;padding:44px 32px 40px;border-radius:28px;overflow:hidden;color:#fff;
+  background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bot) 100%)}
+header.hero::before{content:"";position:absolute;width:120px;height:120px;border-radius:50%;background:var(--sun);top:-34px;right:-26px;box-shadow:0 0 0 18px rgba(255,210,63,.25)}
+.hero h1{color:#fff;position:relative;text-shadow:0 2px 0 rgba(5,70,110,.25)}
+.hero h1 span{color:#fff}
+.hero p{color:rgba(255,255,255,.92);position:relative}
+.wave{color:#fff;opacity:.55;margin:22px 0 4px;position:relative}
+.hero .status{color:rgba(255,255,255,.88);position:relative}
+.tabs{background:var(--bg);margin:18px 0 4px}
+.tab{background:var(--surface);border:1.5px solid var(--line);color:var(--ink);font-weight:600}
+.tab:hover{border-color:var(--sea)}
+.tab[aria-selected="true"]{background:var(--sea);border-color:var(--sea);color:#fff;box-shadow:0 4px 12px -4px rgba(10,139,214,.6)}
+section.block>h2{color:var(--sea-deep)}
+.q{background:var(--surface);border:1.5px solid var(--line);border-radius:18px;box-shadow:0 2px 0 var(--line)}
+input[type=text],input[type=password],textarea{background:var(--surface);border:1.5px solid var(--line);border-radius:12px}
+input[type=text]:focus,input[type=password]:focus,textarea:focus{outline:none;border-color:var(--sea);box-shadow:0 0 0 3px var(--sea-soft)}
+.chip span{background:var(--surface);border-color:#B9DDEC;color:var(--ink);font-weight:500}
+.chip:hover span{border-color:var(--sea);color:var(--sea-deep)}
+.chip input:checked+span{background:var(--sea);border-color:var(--sea);color:#fff;box-shadow:0 3px 10px -4px rgba(10,139,214,.7)}
+.btn{background:var(--sun);color:var(--sun-ink);border-radius:14px;box-shadow:0 4px 0 var(--sun-edge);transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--sun-edge)}
+.btn.ghost{background:var(--surface);color:var(--sea-deep);border:1.5px solid var(--sea);font-weight:600;box-shadow:none}
+.btn.ghost:hover{background:var(--sea-soft)}
+.btn.ghost:active{transform:none}
+.spot-panel{border:1.5px solid var(--line)}
+.spot-head{background:var(--sea)}
+.spot-meta span{background:var(--sea-soft);color:var(--sea-deep);font-weight:500}
+.spot-links a{border-color:var(--line);background:var(--surface)}
+.spot-links a:hover{border-color:var(--sea);background:var(--sea-soft)}
+.plan-days button{font-weight:600}
+.plan-days button:hover{border-color:var(--sea)}
+.plan-card{border:1.5px solid var(--line);border-radius:16px}
+.plan-map{border:1.5px solid var(--line);border-radius:20px}
+.bar .fill{background:linear-gradient(90deg,var(--sky-top),var(--sea))}
+@media (min-width:900px){header.hero{padding:52px 56px 40px}header.hero::before{width:220px;height:220px;top:-70px;right:-50px;box-shadow:0 0 0 30px rgba(255,210,63,.22),0 0 0 62px rgba(255,210,63,.1)}.hero .wave{max-width:720px}}
+fieldset.q legend.title{float:left;width:100%;padding:0;margin-bottom:4px}
+fieldset.q legend.title+*{clear:both}
+@media (max-width:600px){header.hero{padding:36px 22px 30px;border-radius:22px}header.hero::before{width:90px;height:90px;top:-26px;right:-20px}}
+
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 /* required styles */
 
@@ -1343,7 +1387,7 @@ $("#dashView").addEventListener("click", async e => {
 });
 
 /* ---------- 여행일정 ---------- */
-const DAY_COLORS = ["#11698E", "#E8590C", "#7B5CFA", "#2F9E44"];
+const DAY_COLORS = ["#0A8BD6", "#FF6B4A", "#8B5CF6", "#12B886"];
 const COORD = {
  "해운대 해변":[35.1587,129.1604],"광안리·광안대교 야경":[35.1532,129.1186],"해변열차·스카이캡슐 (블루라인파크)":[35.1585,129.1716],
  "감천문화마을":[35.0975,129.0106],"흰여울문화마을":[35.0786,129.0446],"해동용궁사":[35.1883,129.2233],"송도 해상케이블카":[35.0762,129.0170],
