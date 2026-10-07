@@ -938,6 +938,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .ps-foods{display:flex;flex-wrap:wrap;gap:6px}
 .ps-list .ps-foods button{padding:6px 12px;border-radius:999px;font-size:14px}
 .ps-foods button b{color:var(--sea);margin-left:2px}
+.chip .rk{font-style:normal;display:inline-block;margin-left:6px;min-width:18px;text-align:center;font-size:11px;font-weight:700;line-height:1;padding:3px 5px;border-radius:999px;background:var(--sea-soft);color:var(--sea-deep);vertical-align:1px}
+.chip .rk.top{background:var(--sun);color:var(--sun-ink)}
+.chip input:checked+span .rk{background:rgba(255,255,255,.9);color:var(--sea-deep)}
+.sort-toggle{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px}
+.sort-toggle button{font:inherit;font-size:13px;font-weight:600;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.sort-toggle button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.sort-toggle small{font-size:12px;color:var(--muted)}
+.spot-meta .meta-rk{background:var(--sun);color:var(--sun-ink);font-weight:700}
 .ps-custom{display:flex;gap:8px;margin-top:8px}
 .ps-custom input{flex:1}
 .plan-locate{outline:3px solid var(--sun)}
@@ -1307,7 +1315,7 @@ function showSpot(name){
   curSpot = name; curGroup = "spots";
   $("#spotArea").textContent = s.area;
   $("#spotName").textContent = name;
-  $("#spotMeta").innerHTML = `<span>${esc(s.dist)}</span><span>소요 ${esc(s.time)}</span>`;
+  $("#spotMeta").innerHTML = `${TREND && TREND[name] ? `<span class="meta-rk">🔥 네이버 검색 ${TREND[name]}위</span>` : ""}<span>${esc(s.dist)}</span><span>소요 ${esc(s.time)}</span>`;
   $("#spotDesc").textContent = s.d;
   renderGallery(name, s.q);
   const q = s.q;
@@ -1835,6 +1843,40 @@ function showPlanTab(){
   if(mode !== "none") planTimer = setInterval(() => { if(!planEdit && !$("#planView").hidden) planLoad(); }, 20000);
 }
 initPlanEvents();
+
+/* ---------- 네이버 검색 인기 순위 ---------- */
+let TREND = null;
+async function loadTrend(){
+  try{
+    const r = await fetch("/api/trend"); if(!r.ok) return;
+    const j = await r.json(); if(!j.ranks || !j.ranks.length) return;
+    TREND = {}; j.ranks.forEach(x => TREND[x.name] = x.rank); TREND._period = j.period;
+    decorateTrend();
+  }catch(_){}
+}
+function decorateTrend(){
+  const first = document.querySelector('input[name="spots"]'); if(!first || !TREND) return;
+  const fs = first.closest("fieldset"), box = fs.querySelector(".chips");
+  const chips = [...box.querySelectorAll(".chip")];
+  chips.forEach((ch, i) => {
+    ch.dataset.base = i;
+    const rk = TREND[ch.querySelector("input").value];
+    if(rk && !ch.querySelector(".rk")) ch.querySelector("span").insertAdjacentHTML("beforeend", `<i class="rk${rk <= 3 ? " top" : ""}" title="네이버 검색 ${rk}위">${rk}</i>`);
+  });
+  if(fs.querySelector(".sort-toggle")) return;
+  const p = TREND._period || {}, md = d => d ? `${+d.slice(5, 7)}/${+d.slice(8, 10)}` : "";
+  box.insertAdjacentHTML("beforebegin", `<div class="sort-toggle" role="group" aria-label="관광지 정렬">
+    <button type="button" data-sort="base" aria-pressed="true">기본순</button>
+    <button type="button" data-sort="trend" aria-pressed="false">🔥 네이버 검색 인기순</button>
+    <small>최근 30일(${md(p.start)}~${md(p.end)}) 검색량 기준</small></div>`);
+  fs.querySelector(".sort-toggle").addEventListener("click", e => {
+    const b = e.target.closest("[data-sort]"); if(!b) return;
+    fs.querySelectorAll(".sort-toggle button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    const key = ch => b.dataset.sort === "trend" ? (TREND[ch.querySelector("input").value] || 99) : +ch.dataset.base;
+    [...box.querySelectorAll(".chip")].sort((a, c) => key(a) - key(c)).forEach(ch => box.appendChild(ch));
+  });
+}
+loadTrend();
 
 /* ---------- init ---------- */
 buildForm();
