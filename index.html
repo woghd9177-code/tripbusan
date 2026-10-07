@@ -140,7 +140,7 @@ table.grid th{background:var(--sea-soft);white-space:nowrap}
 .spot-empty b{display:block;font-family:"Black Han Sans","Noto Sans KR",sans-serif;font-weight:400;font-size:24px;color:var(--sea);margin-bottom:8px}
 @media (min-width:900px){
   .wrap{max-width:1360px}
-  #dashView{max-width:720px}
+  #dashView,#anonView{max-width:720px}
 
   .layout{display:grid;grid-template-columns:minmax(0,1fr) clamp(400px,46%,620px);gap:32px;align-items:start}
   .layout[hidden]{display:none!important}
@@ -928,6 +928,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .ps-sec{margin:8px 2px 0;font-size:12px;font-weight:700;color:var(--muted)}
 .ps-src{margin:2px;font-size:11px;color:var(--muted);text-align:right}
 #psMap{display:grid;gap:6px}
+.bar.top .fill{background:linear-gradient(90deg,var(--sun),#FFB020)}
+.bar.top span:first-child{font-weight:700}
 .vote{display:inline-block;vertical-align:2px;margin-left:8px;background:var(--sun);color:var(--sun-ink);font-size:11px;font-weight:700;line-height:1;padding:4px 8px;border-radius:999px;white-space:nowrap}
 .ps-in{display:inline-block;vertical-align:2px;margin-left:6px;font-size:11px;font-weight:600;color:var(--sea-deep);background:var(--sea-soft);padding:3px 7px;border-radius:999px}
 .ps-list button.ps-added{opacity:.6}
@@ -956,6 +958,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   <nav class="tabs" id="tabs" hidden role="tablist">
     <button class="tab" role="tab" aria-selected="true" data-view="form">설문</button>
     <button class="tab" role="tab" aria-selected="false" data-view="plan" id="planTab">여행일정</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="anon" id="anonTab">결과(익명)</button>
     <button class="tab" role="tab" aria-selected="false" data-view="dash" id="dashTab" hidden>결과 보기</button>
   </nav>
 
@@ -999,6 +1002,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   </div>
 
   <main id="dashView" hidden></main>
+  <main id="anonView" hidden></main>
   <main id="planView" hidden>
     <div class="plan-top">
       <div class="plan-days" id="planDays" role="group" aria-label="날짜 선택"></div>
@@ -1377,6 +1381,9 @@ $("#tabs").addEventListener("click", e => {
   $("#formView").hidden = b.dataset.view !== "form";
   $("#layout").hidden = b.dataset.view !== "form";
   $("#dashView").hidden = b.dataset.view !== "dash";
+  $("#anonView").hidden = b.dataset.view !== "anon";
+  clearInterval(anonTimer);
+  if(b.dataset.view === "anon"){ $("#spotPanel").hidden = true; showAnon(); anonTimer = setInterval(showAnon, 20000); }
   $("#planView").hidden = b.dataset.view !== "plan";
   if(b.dataset.view === "plan"){ $("#spotPanel").hidden = true; showPlanTab(); }
   if(b.dataset.view === "dash") $("#spotPanel").hidden = true;
@@ -1393,6 +1400,52 @@ $("#dashView").addEventListener("click", async e => {
     copyText(responses.map(r => asText(r.answers || {})).join("\n\n"), $("#copyAllMsg"));
   }
 });
+
+/* ---------- 익명 결과 ---------- */
+let anonTimer = null;
+async function fetchAnon(){
+  if(mode === "supa") return (await rpc("get_public_results", {})) || [];
+  if(mode === "claude"){
+    if(isOwner) return responses.map(r => r.answers || {});
+    const snap = await db.collection("responses").get();
+    return snap.docs.map(x => (x.data() || {}).answers || {});
+  }
+  throw new Error("offline");
+}
+function renderAnon(rows){
+  const v = $("#anonView"), n = rows.length;
+  if(!n){ v.innerHTML = `<section class="block"><p class="empty">아직 응답이 없어요. 설문 탭에서 먼저 응답해주세요.</p></section>`; return; }
+  let html = `<section class="block"><div class="count">${n}<small>/ ${TOTAL}명 응답</small></div>
+    <p class="desc" style="margin-top:8px">누가 무엇을 골랐는지는 보이지 않고, 항목별 숫자와 의견만 모아서 보여줘요. 20초마다 새로고침됩니다.</p></section>`;
+  let cur = null;
+  Q.filter(q => q.id !== "name").forEach(q => {
+    if(q.sec !== cur){ if(cur) html += "</section>"; cur = q.sec; html += `<section class="block"><h2>${esc(q.sec)}</h2>`; }
+    html += `<div class="q"><span class="title">${esc(q.label)}</span>`;
+    if(q.type === "single" || q.type === "multi"){
+      const rowsQ = q.opts.map(o => ({o, c: rows.filter(a => Array.isArray(a[q.id]) ? a[q.id].includes(o) : a[q.id] === o).length}))
+        .filter(r => r.c).sort((a, b) => b.c - a.c);
+      const top = rowsQ.length ? rowsQ[0].c : 0;
+      html += rowsQ.length ? rowsQ.map(r => `<div class="bar${r.c === top ? " top" : ""}"><span>${esc(r.o)}</span><div class="track"><div class="fill" style="width:${r.c / n * 100}%"></div></div><span class="num">${r.c}</span></div>`).join("")
+        : `<p class="empty">선택 없음</p>`;
+    } else {
+      const items = rows.map(a => (a[q.id] || "").trim()).filter(Boolean);
+      html += items.length ? `<ul class="texts">${items.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : `<p class="empty">작성 없음</p>`;
+    }
+    html += `</div>`;
+  });
+  v.innerHTML = html + "</section>";
+}
+async function showAnon(){
+  const v = $("#anonView");
+  if(!v.innerHTML) v.innerHTML = `<section class="block"><p class="empty">불러오는 중…</p></section>`;
+  try{ renderAnon(await fetchAnon()); }
+  catch(e){
+    const msg = mode === "none" ? "저장 기능이 꺼져 있어 결과를 모을 수 없어요."
+      : String(e.message || e).includes("get_public_results") || String(e.message || e).includes("function") ? "익명 결과용 SQL이 아직 실행되지 않았어요."
+      : "결과를 불러오지 못했어요. 잠시 후 다시 열어주세요.";
+    v.innerHTML = `<p class="note err">${msg}</p>`;
+  }
+}
 
 /* ---------- 여행일정 ---------- */
 const DAY_COLORS = ["#0A8BD6", "#FF6B4A", "#8B5CF6", "#12B886"];
@@ -1616,8 +1669,10 @@ async function loadVotes(force){
     if(mode === "claude" && isOwner) rows = responses;
     else if(mode === "supa" && ADMIN) rows = await store.list();
   }catch(_){ rows = null; }
+  let anon = false;
+  if(!rows){ try{ rows = (await fetchAnon()).map(a => ({answers: a, name: ""})); anon = true; }catch(_){ rows = null; } }
   if(!rows){ votes = null; return null; }
-  const v = {spots:{}, cafe:{}, food:{}, n: rows.length};
+  const v = {spots:{}, cafe:{}, food:{}, n: rows.length, anon};
   rows.forEach(r => {
     const a = r.answers || {}, who = r.name || a.name || "?";
     ["spots", "cafe", "food"].forEach(k => (Array.isArray(a[k]) ? a[k] : []).forEach(o => { (v[k][o] = v[k][o] || []).push(who); }));
@@ -1638,7 +1693,8 @@ function voteBadge(p){
   const name = p.n || p.name, isSpot = votes && votes.spots[name];
   const src = PLACES.find(x => x.n === name), grp = !isSpot && src && CAFE[src.area] ? src.area : null;
   const label = grp ? `${grp.replace(/ 카페$/, "")} ${w.length}표` : `설문 ${w.length}표`;
-  return `<span class="vote" title="${esc((grp ? grp + "을(를) 고른 사람: " : "") + w.join(", "))}">${esc(label)}</span>`;
+  const tip = votes.anon ? (grp ? grp + "을(를) 고른 사람 수" : "설문에서 고른 사람 수") : (grp ? grp + "을(를) 고른 사람: " : "") + w.join(", ");
+  return `<span class="vote" title="${esc(tip)}">${esc(label)}</span>`;
 }
 const inPlan = name => plan.days.some(d => d.items.some(it => it.name === name));
 
@@ -1682,7 +1738,7 @@ async function searchOSM(q){
 function sheetRow(p, attr){
   const w = votersOf(p), added = inPlan(p.n);
   return `<button type="button" ${attr}${added ? ' class="ps-added"' : ""}><b>${esc(p.n)}${voteBadge(p)}${added ? '<span class="ps-in">일정에 있음</span>' : ""}</b>` +
-    `<small>${esc(p.cat)}${p.area ? " · " + esc(p.area) : ""}</small>${w.length ? `<small class="ps-who">${esc(w.join(", "))}</small>` : ""}</button>`;
+    `<small>${esc(p.cat)}${p.area ? " · " + esc(p.area) : ""}</small>${w.length && !votes.anon ? `<small class="ps-who">${esc(w.join(", "))}</small>` : ""}</button>`;
 }
 function fillSheet(q){
   q = q.trim();
@@ -1696,10 +1752,10 @@ function fillSheet(q){
       const foods = Object.entries(votes.food).sort((a, b) => b[1].length - a[1].length);
       $("#psList").innerHTML =
         `<p class="ps-sec">설문 인기순 · 응답 ${votes.n}명</p>` + (hot.map(row).join("") || `<p class="plan-empty" style="padding-left:0">아직 관광지·카페를 고른 응답이 없어요.</p>`) +
-        (foods.length ? `<p class="ps-sec">많이 고른 음식 · 누르면 맛집 검색</p><div class="ps-foods">${foods.map(([f, w]) => `<button type="button" data-food="${esc(f.replace(/\s*\(.*\)/, ""))}" title="${esc(w.join(", "))}">${esc(f)} <b>${w.length}</b></button>`).join("")}</div>` : "") +
+        (foods.length ? `<p class="ps-sec">많이 고른 음식 · 누르면 맛집 검색</p><div class="ps-foods">${foods.map(([f, w]) => `<button type="button" data-food="${esc(f.replace(/\s*\(.*\)/, ""))}" ${votes.anon ? "" : `title="${esc(w.join(", "))}"`}>${esc(f)} <b>${w.length}</b></button>`).join("")}</div>` : "") +
         `<p class="ps-sec">전체 목록</p>` + rest.map(row).join("");
     } else {
-      $("#psList").innerHTML = (mode === "supa" || mode === "claude" ? `<p class="ps-hint">편집 모드에서 비밀번호를 넣으면 설문에서 많이 고른 순으로 보여줘요.</p>` : "") + list.map(row).join("");
+      $("#psList").innerHTML = (mode !== "none" ? `<p class="ps-hint">설문 결과를 불러오지 못해 기본 순서로 보여줘요.</p>` : "") + list.map(row).join("");
     }
     return;
   }
@@ -1773,6 +1829,7 @@ function initPlanEvents(){
 }
 function showPlanTab(){
   if(!planLoaded) planLoad(); else renderPlan();
+  loadVotes().then(() => { if(planLoaded) renderPlan(); });
   clearInterval(planTimer);
   if(mode === "claude") $("#planNote").textContent = "Claude 미리보기에서는 지도 배경 타일이 막혀 보이지 않아요. 배포 사이트에서는 정상으로 보입니다.";
   if(mode !== "none") planTimer = setInterval(() => { if(!planEdit && !$("#planView").hidden) planLoad(); }, 20000);
