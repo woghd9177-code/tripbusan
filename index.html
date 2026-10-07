@@ -928,6 +928,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .ps-sec{margin:8px 2px 0;font-size:12px;font-weight:700;color:var(--muted)}
 .ps-src{margin:2px;font-size:11px;color:var(--muted);text-align:right}
 #psMap{display:grid;gap:6px}
+.vote{display:inline-block;vertical-align:2px;margin-left:8px;background:var(--sun);color:var(--sun-ink);font-size:11px;font-weight:700;line-height:1;padding:4px 8px;border-radius:999px;white-space:nowrap}
+.ps-in{display:inline-block;vertical-align:2px;margin-left:6px;font-size:11px;font-weight:600;color:var(--sea-deep);background:var(--sea-soft);padding:3px 7px;border-radius:999px}
+.ps-list button.ps-added{opacity:.6}
+.ps-list small.ps-who{color:var(--sea-deep);margin-top:2px}
+.ps-hint{font-size:12px;color:var(--muted);background:var(--sea-soft);border-radius:10px;padding:8px 10px;margin:0}
+.ps-foods{display:flex;flex-wrap:wrap;gap:6px}
+.ps-list .ps-foods button{padding:6px 12px;border-radius:999px;font-size:14px}
+.ps-foods button b{color:var(--sea);margin-left:2px}
 .ps-custom{display:flex;gap:8px;margin-top:8px}
 .ps-custom input{flex:1}
 .plan-locate{outline:3px solid var(--sun)}
@@ -1458,7 +1466,7 @@ async function canEditPlan(){
 }
 async function toggleEdit(){
   if(planEdit){ planEdit = false; renderPlan(); return; }
-  if(await canEditPlan()){ planEdit = true; $("#planAuth").hidden = true; renderPlan(); return; }
+  if(await canEditPlan()){ planEdit = true; $("#planAuth").hidden = true; renderPlan(); loadVotes(true).then(renderPlan); return; }
   if(mode === "claude"){ $("#planStatus").textContent = "일정 편집은 만든 사람만 할 수 있어요"; return; }
   $("#planAuth").hidden = false; $("#planKey").focus();
 }
@@ -1469,6 +1477,7 @@ async function submitPlanKey(){
   if(!ok){ ADMIN = prev; $("#planKeyMsg").textContent = "비밀번호가 맞지 않거나, 일정용 SQL이 아직 실행되지 않았어요."; return; }
   try{ sessionStorage.setItem("busan_admin", k); }catch(_){}
   $("#planAuth").hidden = true; $("#planKeyMsg").textContent = ""; planEdit = true; renderPlan();
+  loadVotes(true).then(renderPlan);
 }
 
 /* render */
@@ -1491,7 +1500,7 @@ function renderPlan(){
         ? `<div class="plan-card memo-card"><span class="drag" title="끌어서 순서 변경">⋮⋮</span><div class="pc-main"><b>${esc(it.text)}</b></div>
              <div class="pc-acts pc-edit"><button type="button" class="pc-btn" data-act="memo" data-id="${it.id}">수정</button><button type="button" class="pc-btn" data-act="del" data-id="${it.id}" aria-label="삭제">✕</button></div></div>`
         : `<div class="plan-card"><span class="drag" title="끌어서 순서 변경">⋮⋮</span>
-             <div class="pc-main"><b>${esc(it.name)}</b><div class="pc-sub">${esc(it.cat || "나만의 장소")}${it.area ? " · " + esc(it.area) : ""}${it.approx ? " · 위치 대략" : ""}${geo ? "" : " · 지도 위치 없음"}</div>${it.memo ? `<div class="pc-memo">${esc(it.memo)}</div>` : ""}</div>
+             <div class="pc-main"><b>${esc(it.name)}${voteBadge(it)}</b><div class="pc-sub">${esc(it.cat || "나만의 장소")}${it.area ? " · " + esc(it.area) : ""}${it.approx ? " · 위치 대략" : ""}${geo ? "" : " · 지도 위치 없음"}</div>${it.memo ? `<div class="pc-memo">${esc(it.memo)}</div>` : ""}</div>
              <div class="pc-acts">${geo ? "" : `<button type="button" class="pc-btn pc-edit" data-act="locate" data-id="${it.id}">📍위치</button>`}
              <button type="button" class="pc-btn pc-edit" data-act="note" data-id="${it.id}">메모</button>
              ${it.link ? `<a class="pc-btn" href="${esc(it.link)}" target="_blank" rel="noopener">지도↗</a>` : ""}<a class="pc-btn" href="https://search.naver.com/search.naver?query=${enc("부산 " + it.name)}" target="_blank" rel="noopener">검색↗</a>
@@ -1598,10 +1607,46 @@ async function renderMap(){
 }
 
 /* add sheet */
+/* 설문 결과 연동 */
+let votes = null, votesAt = 0;
+async function loadVotes(force){
+  if(!force && votes && Date.now() - votesAt < 30000) return votes;
+  let rows = null;
+  try{
+    if(mode === "claude" && isOwner) rows = responses;
+    else if(mode === "supa" && ADMIN) rows = await store.list();
+  }catch(_){ rows = null; }
+  if(!rows){ votes = null; return null; }
+  const v = {spots:{}, cafe:{}, food:{}, n: rows.length};
+  rows.forEach(r => {
+    const a = r.answers || {}, who = r.name || a.name || "?";
+    ["spots", "cafe", "food"].forEach(k => (Array.isArray(a[k]) ? a[k] : []).forEach(o => { (v[k][o] = v[k][o] || []).push(who); }));
+  });
+  votes = v; votesAt = Date.now(); return v;
+}
+function votersOf(p){
+  if(!votes || !p) return [];
+  const name = p.n || p.name, cat = p.cat;
+  if(votes.spots[name]) return votes.spots[name];
+  const src = PLACES.find(x => x.n === name);
+  const group = src && (src.cat === "카페" || src.cat === "쇼핑") ? src.area : (cat === "카페" || cat === "쇼핑" ? p.area : null);
+  if(group && CAFE[group]) return votes.cafe[group] || [];
+  return [];
+}
+function voteBadge(p){
+  const w = votersOf(p); if(!w.length) return "";
+  const name = p.n || p.name, isSpot = votes && votes.spots[name];
+  const src = PLACES.find(x => x.n === name), grp = !isSpot && src && CAFE[src.area] ? src.area : null;
+  const label = grp ? `${grp.replace(/ 카페$/, "")} ${w.length}표` : `설문 ${w.length}표`;
+  return `<span class="vote" title="${esc((grp ? grp + "을(를) 고른 사람: " : "") + w.join(", "))}">${esc(label)}</span>`;
+}
+const inPlan = name => plan.days.some(d => d.items.some(it => it.name === name));
+
 function openSheet(day){
   sheetDay = day;
   $("#psDay").textContent = `${plan.days[day].label} ${plan.days[day].date}`;
   $("#psSearch").value = ""; fillSheet(""); $("#planSheet").hidden = false;
+  loadVotes().then(() => { if(!$("#planSheet").hidden) fillSheet($("#psSearch").value); });
   setTimeout(() => $("#psSearch").focus(), 50);
 }
 let mapHits = [], searchSeq = 0, searchTick = null, kakaoReady = null;
@@ -1634,13 +1679,31 @@ async function searchOSM(q){
     return j.map(d => ({n: d.name || d.display_name.split(",")[0], cat: ({restaurant:"음식점",fast_food:"음식점",food_court:"음식점",cafe:"카페",bar:"술집",pub:"술집",attraction:"관광명소",viewpoint:"전망대",museum:"박물관",hotel:"숙소",beach:"해변",station:"역",mall:"쇼핑",department_store:"쇼핑",marketplace:"시장"})[d.type] || "장소", area: d.display_name.split(",").slice(1, 4).join(",").trim(), lat: +(+d.lat).toFixed(5), lng: +(+d.lon).toFixed(5)}));
   }catch(_){ return null; }
 }
-function sheetRow(p, attr){ return `<button type="button" ${attr}><b>${esc(p.n)}</b><small>${esc(p.cat)}${p.area ? " · " + esc(p.area) : ""}</small></button>`; }
+function sheetRow(p, attr){
+  const w = votersOf(p), added = inPlan(p.n);
+  return `<button type="button" ${attr}${added ? ' class="ps-added"' : ""}><b>${esc(p.n)}${voteBadge(p)}${added ? '<span class="ps-in">일정에 있음</span>' : ""}</b>` +
+    `<small>${esc(p.cat)}${p.area ? " · " + esc(p.area) : ""}</small>${w.length ? `<small class="ps-who">${esc(w.join(", "))}</small>` : ""}</button>`;
+}
 function fillSheet(q){
   q = q.trim();
-  const list = PLACES.filter(p => !q || (p.n + p.area + p.cat).includes(q)).slice(0, q ? 20 : 60);
-  const local = list.map(p => sheetRow(p, `data-k="${PLACES.indexOf(p)}"`)).join("");
+  const byVote = (a, b) => votersOf(b).length - votersOf(a).length;
+  const list = PLACES.filter(p => !q || (p.n + p.area + p.cat).includes(q)).sort(byVote).slice(0, q ? 20 : 60);
+  const row = p => sheetRow(p, `data-k="${PLACES.indexOf(p)}"`);
   $("#psName").value = q;
-  if(!q){ $("#psList").innerHTML = local; return; }
+  if(!q){
+    if(votes){
+      const hot = list.filter(p => votersOf(p).length), rest = list.filter(p => !votersOf(p).length);
+      const foods = Object.entries(votes.food).sort((a, b) => b[1].length - a[1].length);
+      $("#psList").innerHTML =
+        `<p class="ps-sec">설문 인기순 · 응답 ${votes.n}명</p>` + (hot.map(row).join("") || `<p class="plan-empty" style="padding-left:0">아직 관광지·카페를 고른 응답이 없어요.</p>`) +
+        (foods.length ? `<p class="ps-sec">많이 고른 음식 · 누르면 맛집 검색</p><div class="ps-foods">${foods.map(([f, w]) => `<button type="button" data-food="${esc(f.replace(/\s*\(.*\)/, ""))}" title="${esc(w.join(", "))}">${esc(f)} <b>${w.length}</b></button>`).join("")}</div>` : "") +
+        `<p class="ps-sec">전체 목록</p>` + rest.map(row).join("");
+    } else {
+      $("#psList").innerHTML = (mode === "supa" || mode === "claude" ? `<p class="ps-hint">편집 모드에서 비밀번호를 넣으면 설문에서 많이 고른 순으로 보여줘요.</p>` : "") + list.map(row).join("");
+    }
+    return;
+  }
+  const local = list.map(row).join("");
   $("#psList").innerHTML = (local ? `<p class="ps-sec">추천 목록</p>${local}` : "") + `<p class="ps-sec">지도 검색</p><div id="psMap"><p class="plan-empty" style="padding-left:0">검색 중…</p></div>`;
   clearTimeout(searchTick);
   const seq = ++searchSeq;
@@ -1700,6 +1763,8 @@ function initPlanEvents(){
   $("#planSheet").addEventListener("click", e => { if(e.target.id === "planSheet") $("#planSheet").hidden = true; });
   $("#psSearch").addEventListener("input", e => fillSheet(e.target.value));
   $("#psList").addEventListener("click", e => {
+    const f = e.target.closest("[data-food]");
+    if(f){ const q = "부산 " + f.dataset.food; $("#psSearch").value = q; fillSheet(q); $("#psSearch").focus(); return; }
     const b = e.target.closest("[data-k],[data-h]"); if(!b) return;
     addPlace(b.dataset.k != null ? PLACES[+b.dataset.k] : mapHits[+b.dataset.h]);
   });
