@@ -137,7 +137,7 @@ table.grid th{background:var(--sea-soft);white-space:nowrap}
 .spot-empty b{display:block;font-family:"Black Han Sans","Noto Sans KR",sans-serif;font-weight:400;font-size:24px;color:var(--sea);margin-bottom:8px}
 @media (min-width:900px){
   .wrap{max-width:1360px}
-  .hero,.tabs,#dashView{max-width:720px}
+  .hero,#dashView{max-width:720px}
   .layout{display:grid;grid-template-columns:minmax(0,1fr) clamp(400px,46%,620px);gap:32px;align-items:start}
   .layout[hidden]{display:none!important}
   .spot-panel,.spot-panel[hidden]{display:block!important;position:sticky;top:calc(76px + env(safe-area-inset-top,0px));right:auto;left:auto;bottom:auto;
@@ -153,6 +153,740 @@ table.grid th{background:var(--sea-soft);white-space:nowrap}
 }
 [hidden]{display:none!important}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+/* required styles */
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container,
+.leaflet-pane > svg,
+.leaflet-pane > canvas,
+.leaflet-zoom-box,
+.leaflet-image-layer,
+.leaflet-layer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	}
+.leaflet-container {
+	overflow: hidden;
+	}
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	-webkit-user-select: none;
+	   -moz-user-select: none;
+	        user-select: none;
+	  -webkit-user-drag: none;
+	}
+/* Prevents IE11 from highlighting tiles in blue */
+.leaflet-tile::selection {
+	background: transparent;
+}
+/* Safari renders non-retina tile on retina better with this, but Chrome is worse */
+.leaflet-safari .leaflet-tile {
+	image-rendering: -webkit-optimize-contrast;
+	}
+/* hack that prevents hw layers "stretching" when loading new tiles */
+.leaflet-safari .leaflet-tile-container {
+	width: 1600px;
+	height: 1600px;
+	-webkit-transform-origin: 0 0;
+	}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+	display: block;
+	}
+/* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
+/* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
+.leaflet-container .leaflet-overlay-pane svg {
+	max-width: none !important;
+	max-height: none !important;
+	}
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container img.leaflet-image-layer,
+.leaflet-container .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+	width: auto;
+	padding: 0;
+	}
+
+.leaflet-container img.leaflet-tile {
+	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
+	mix-blend-mode: plus-lighter;
+}
+
+.leaflet-container.leaflet-touch-zoom {
+	-ms-touch-action: pan-x pan-y;
+	touch-action: pan-x pan-y;
+	}
+.leaflet-container.leaflet-touch-drag {
+	-ms-touch-action: pinch-zoom;
+	/* Fallback for FF which doesn't support pinch-zoom */
+	touch-action: none;
+	touch-action: pinch-zoom;
+}
+.leaflet-container.leaflet-touch-drag.leaflet-touch-zoom {
+	-ms-touch-action: none;
+	touch-action: none;
+}
+.leaflet-container {
+	-webkit-tap-highlight-color: transparent;
+}
+.leaflet-container a {
+	-webkit-tap-highlight-color: rgba(51, 181, 229, 0.4);
+}
+.leaflet-tile {
+	filter: inherit;
+	visibility: hidden;
+	}
+.leaflet-tile-loaded {
+	visibility: inherit;
+	}
+.leaflet-zoom-box {
+	width: 0;
+	height: 0;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	z-index: 800;
+	}
+/* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
+.leaflet-overlay-pane svg {
+	-moz-user-select: none;
+	}
+
+.leaflet-pane         { z-index: 400; }
+
+.leaflet-tile-pane    { z-index: 200; }
+.leaflet-overlay-pane { z-index: 400; }
+.leaflet-shadow-pane  { z-index: 500; }
+.leaflet-marker-pane  { z-index: 600; }
+.leaflet-tooltip-pane   { z-index: 650; }
+.leaflet-popup-pane   { z-index: 700; }
+
+.leaflet-map-pane canvas { z-index: 100; }
+.leaflet-map-pane svg    { z-index: 200; }
+
+.leaflet-vml-shape {
+	width: 1px;
+	height: 1px;
+	}
+.lvml {
+	behavior: url(#default#VML);
+	display: inline-block;
+	position: absolute;
+	}
+
+
+/* control positioning */
+
+.leaflet-control {
+	position: relative;
+	z-index: 800;
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+.leaflet-top,
+.leaflet-bottom {
+	position: absolute;
+	z-index: 1000;
+	pointer-events: none;
+	}
+.leaflet-top {
+	top: 0;
+	}
+.leaflet-right {
+	right: 0;
+	}
+.leaflet-bottom {
+	bottom: 0;
+	}
+.leaflet-left {
+	left: 0;
+	}
+.leaflet-control {
+	float: left;
+	clear: both;
+	}
+.leaflet-right .leaflet-control {
+	float: right;
+	}
+.leaflet-top .leaflet-control {
+	margin-top: 10px;
+	}
+.leaflet-bottom .leaflet-control {
+	margin-bottom: 10px;
+	}
+.leaflet-left .leaflet-control {
+	margin-left: 10px;
+	}
+.leaflet-right .leaflet-control {
+	margin-right: 10px;
+	}
+
+
+/* zoom and fade animations */
+
+.leaflet-fade-anim .leaflet-popup {
+	opacity: 0;
+	-webkit-transition: opacity 0.2s linear;
+	   -moz-transition: opacity 0.2s linear;
+	        transition: opacity 0.2s linear;
+	}
+.leaflet-fade-anim .leaflet-map-pane .leaflet-popup {
+	opacity: 1;
+	}
+.leaflet-zoom-animated {
+	-webkit-transform-origin: 0 0;
+	    -ms-transform-origin: 0 0;
+	        transform-origin: 0 0;
+	}
+svg.leaflet-zoom-animated {
+	will-change: transform;
+}
+
+.leaflet-zoom-anim .leaflet-zoom-animated {
+	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
+	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
+	        transition:         transform 0.25s cubic-bezier(0,0,0.25,1);
+	}
+.leaflet-zoom-anim .leaflet-tile,
+.leaflet-pan-anim .leaflet-tile {
+	-webkit-transition: none;
+	   -moz-transition: none;
+	        transition: none;
+	}
+
+.leaflet-zoom-anim .leaflet-zoom-hide {
+	visibility: hidden;
+	}
+
+
+/* cursors */
+
+.leaflet-interactive {
+	cursor: pointer;
+	}
+.leaflet-grab {
+	cursor: -webkit-grab;
+	cursor:    -moz-grab;
+	cursor:         grab;
+	}
+.leaflet-crosshair,
+.leaflet-crosshair .leaflet-interactive {
+	cursor: crosshair;
+	}
+.leaflet-popup-pane,
+.leaflet-control {
+	cursor: auto;
+	}
+.leaflet-dragging .leaflet-grab,
+.leaflet-dragging .leaflet-grab .leaflet-interactive,
+.leaflet-dragging .leaflet-marker-draggable {
+	cursor: move;
+	cursor: -webkit-grabbing;
+	cursor:    -moz-grabbing;
+	cursor:         grabbing;
+	}
+
+/* marker & overlays interactivity */
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-image-layer,
+.leaflet-pane > svg path,
+.leaflet-tile-container {
+	pointer-events: none;
+	}
+
+.leaflet-marker-icon.leaflet-interactive,
+.leaflet-image-layer.leaflet-interactive,
+.leaflet-pane > svg path.leaflet-interactive,
+svg.leaflet-image-layer.leaflet-interactive path {
+	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: auto;
+	}
+
+/* visual tweaks */
+
+.leaflet-container {
+	background: #ddd;
+	outline-offset: 1px;
+	}
+.leaflet-container a {
+	color: #0078A8;
+	}
+.leaflet-zoom-box {
+	border: 2px dotted #38f;
+	background: rgba(255,255,255,0.5);
+	}
+
+
+/* general typography */
+.leaflet-container {
+	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font-size: 12px;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	}
+
+
+/* general toolbar styles */
+
+.leaflet-bar {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+	border-radius: 4px;
+	}
+.leaflet-bar a {
+	background-color: #fff;
+	border-bottom: 1px solid #ccc;
+	width: 26px;
+	height: 26px;
+	line-height: 26px;
+	display: block;
+	text-align: center;
+	text-decoration: none;
+	color: black;
+	}
+.leaflet-bar a,
+.leaflet-control-layers-toggle {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	}
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+	background-color: #f4f4f4;
+	}
+.leaflet-bar a:first-child {
+	border-top-left-radius: 4px;
+	border-top-right-radius: 4px;
+	}
+.leaflet-bar a:last-child {
+	border-bottom-left-radius: 4px;
+	border-bottom-right-radius: 4px;
+	border-bottom: none;
+	}
+.leaflet-bar a.leaflet-disabled {
+	cursor: default;
+	background-color: #f4f4f4;
+	color: #bbb;
+	}
+
+.leaflet-touch .leaflet-bar a {
+	width: 30px;
+	height: 30px;
+	line-height: 30px;
+	}
+.leaflet-touch .leaflet-bar a:first-child {
+	border-top-left-radius: 2px;
+	border-top-right-radius: 2px;
+	}
+.leaflet-touch .leaflet-bar a:last-child {
+	border-bottom-left-radius: 2px;
+	border-bottom-right-radius: 2px;
+	}
+
+/* zoom control */
+
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out {
+	font: bold 18px 'Lucida Console', Monaco, monospace;
+	text-indent: 1px;
+	}
+
+.leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
+	font-size: 22px;
+	}
+
+
+/* layers control */
+
+.leaflet-control-layers {
+	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+	background: #fff;
+	border-radius: 5px;
+	}
+.leaflet-control-layers-toggle {
+	background-image: url(images/layers.png);
+	width: 36px;
+	height: 36px;
+	}
+.leaflet-retina .leaflet-control-layers-toggle {
+	background-image: url(images/layers-2x.png);
+	background-size: 26px 26px;
+	}
+.leaflet-touch .leaflet-control-layers-toggle {
+	width: 44px;
+	height: 44px;
+	}
+.leaflet-control-layers .leaflet-control-layers-list,
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+	display: none;
+	}
+.leaflet-control-layers-expanded .leaflet-control-layers-list {
+	display: block;
+	position: relative;
+	}
+.leaflet-control-layers-expanded {
+	padding: 6px 10px 6px 6px;
+	color: #333;
+	background: #fff;
+	}
+.leaflet-control-layers-scrollbar {
+	overflow-y: scroll;
+	overflow-x: hidden;
+	padding-right: 5px;
+	}
+.leaflet-control-layers-selector {
+	margin-top: 2px;
+	position: relative;
+	top: 1px;
+	}
+.leaflet-control-layers label {
+	display: block;
+	font-size: 13px;
+	font-size: 1.08333em;
+	}
+.leaflet-control-layers-separator {
+	height: 0;
+	border-top: 1px solid #ddd;
+	margin: 5px -10px 5px -6px;
+	}
+
+/* Default icon URLs */
+.leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+	background-image: url(images/marker-icon.png);
+	}
+
+
+/* attribution and scale controls */
+
+.leaflet-container .leaflet-control-attribution {
+	background: #fff;
+	background: rgba(255, 255, 255, 0.8);
+	margin: 0;
+	}
+.leaflet-control-attribution,
+.leaflet-control-scale-line {
+	padding: 0 5px;
+	color: #333;
+	line-height: 1.4;
+	}
+.leaflet-control-attribution a {
+	text-decoration: none;
+	}
+.leaflet-control-attribution a:hover,
+.leaflet-control-attribution a:focus {
+	text-decoration: underline;
+	}
+.leaflet-attribution-flag {
+	display: inline !important;
+	vertical-align: baseline !important;
+	width: 1em;
+	height: 0.6669em;
+	}
+.leaflet-left .leaflet-control-scale {
+	margin-left: 5px;
+	}
+.leaflet-bottom .leaflet-control-scale {
+	margin-bottom: 5px;
+	}
+.leaflet-control-scale-line {
+	border: 2px solid #777;
+	border-top: none;
+	line-height: 1.1;
+	padding: 2px 5px 1px;
+	white-space: nowrap;
+	-moz-box-sizing: border-box;
+	     box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.8);
+	text-shadow: 1px 1px #fff;
+	}
+.leaflet-control-scale-line:not(:first-child) {
+	border-top: 2px solid #777;
+	border-bottom: none;
+	margin-top: -2px;
+	}
+.leaflet-control-scale-line:not(:first-child):not(:last-child) {
+	border-bottom: 2px solid #777;
+	}
+
+.leaflet-touch .leaflet-control-attribution,
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	box-shadow: none;
+	}
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-bar {
+	border: 2px solid rgba(0,0,0,0.2);
+	background-clip: padding-box;
+	}
+
+
+/* popup */
+
+.leaflet-popup {
+	position: absolute;
+	text-align: center;
+	margin-bottom: 20px;
+	}
+.leaflet-popup-content-wrapper {
+	padding: 1px;
+	text-align: left;
+	border-radius: 12px;
+	}
+.leaflet-popup-content {
+	margin: 13px 24px 13px 20px;
+	line-height: 1.3;
+	font-size: 13px;
+	font-size: 1.08333em;
+	min-height: 1px;
+	}
+.leaflet-popup-content p {
+	margin: 17px 0;
+	margin: 1.3em 0;
+	}
+.leaflet-popup-tip-container {
+	width: 40px;
+	height: 20px;
+	position: absolute;
+	left: 50%;
+	margin-top: -1px;
+	margin-left: -20px;
+	overflow: hidden;
+	pointer-events: none;
+	}
+.leaflet-popup-tip {
+	width: 17px;
+	height: 17px;
+	padding: 1px;
+
+	margin: -10px auto 0;
+	pointer-events: auto;
+
+	-webkit-transform: rotate(45deg);
+	   -moz-transform: rotate(45deg);
+	    -ms-transform: rotate(45deg);
+	        transform: rotate(45deg);
+	}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+	background: white;
+	color: #333;
+	box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+	}
+.leaflet-container a.leaflet-popup-close-button {
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: none;
+	text-align: center;
+	width: 24px;
+	height: 24px;
+	font: 16px/24px Tahoma, Verdana, sans-serif;
+	color: #757575;
+	text-decoration: none;
+	background: transparent;
+	}
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus {
+	color: #585858;
+	}
+.leaflet-popup-scrolled {
+	overflow: auto;
+	}
+
+.leaflet-oldie .leaflet-popup-content-wrapper {
+	-ms-zoom: 1;
+	}
+.leaflet-oldie .leaflet-popup-tip {
+	width: 24px;
+	margin: 0 auto;
+
+	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
+	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
+	}
+
+.leaflet-oldie .leaflet-control-zoom,
+.leaflet-oldie .leaflet-control-layers,
+.leaflet-oldie .leaflet-popup-content-wrapper,
+.leaflet-oldie .leaflet-popup-tip {
+	border: 1px solid #999;
+	}
+
+
+/* div icon */
+
+.leaflet-div-icon {
+	background: #fff;
+	border: 1px solid #666;
+	}
+
+
+/* Tooltip */
+/* Base styles for the element that has a tooltip */
+.leaflet-tooltip {
+	position: absolute;
+	padding: 6px;
+	background-color: #fff;
+	border: 1px solid #fff;
+	border-radius: 3px;
+	color: #222;
+	white-space: nowrap;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	pointer-events: none;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+.leaflet-tooltip.leaflet-interactive {
+	cursor: pointer;
+	pointer-events: auto;
+	}
+.leaflet-tooltip-top:before,
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	position: absolute;
+	pointer-events: none;
+	border: 6px solid transparent;
+	background: transparent;
+	content: "";
+	}
+
+/* Directions */
+
+.leaflet-tooltip-bottom {
+	margin-top: 6px;
+}
+.leaflet-tooltip-top {
+	margin-top: -6px;
+}
+.leaflet-tooltip-bottom:before,
+.leaflet-tooltip-top:before {
+	left: 50%;
+	margin-left: -6px;
+	}
+.leaflet-tooltip-top:before {
+	bottom: 0;
+	margin-bottom: -12px;
+	border-top-color: #fff;
+	}
+.leaflet-tooltip-bottom:before {
+	top: 0;
+	margin-top: -12px;
+	margin-left: -6px;
+	border-bottom-color: #fff;
+	}
+.leaflet-tooltip-left {
+	margin-left: -6px;
+}
+.leaflet-tooltip-right {
+	margin-left: 6px;
+}
+.leaflet-tooltip-left:before,
+.leaflet-tooltip-right:before {
+	top: 50%;
+	margin-top: -6px;
+	}
+.leaflet-tooltip-left:before {
+	right: 0;
+	margin-right: -12px;
+	border-left-color: #fff;
+	}
+.leaflet-tooltip-right:before {
+	left: 0;
+	margin-left: -12px;
+	border-right-color: #fff;
+	}
+
+/* Printing */
+
+@media print {
+	/* Prevent printers from removing background-images of controls. */
+	.leaflet-control {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+		}
+	}
+
+#planView{margin-top:12px}
+.plan-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 0 12px}
+.plan-days{display:flex;gap:6px;flex-wrap:wrap}
+.plan-days button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;padding:7px 14px;border-radius:999px;cursor:pointer}
+.plan-days button[aria-pressed="true"]{background:var(--sea);border-color:var(--sea);color:#fff}
+.plan-days button i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.plan-tools{display:flex;align-items:center;gap:10px}
+.plan-tools .status{font-size:13px}
+.plan-auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.plan-auth input{flex:1;min-width:160px}
+.plan-map{height:clamp(260px,42vh,420px);border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#dfe8ec;position:relative;z-index:0}
+.plan-map .map-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;text-align:center;padding:20px}
+.plan-note{font-size:12px;color:var(--muted);margin:6px 2px 0}
+.pin{width:28px;height:28px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.plan-day{margin-top:22px}
+.plan-day-h{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;font-size:18px;font-weight:700}
+.plan-day-h small{font-size:14px;color:var(--muted);font-weight:500}
+.plan-day-h i{width:10px;height:10px;border-radius:50%;display:inline-block;align-self:center}
+.plan-items{list-style:none;margin:0;padding:0 0 0 0;min-height:44px;position:relative}
+.plan-items.empty-drop{border:1.5px dashed var(--line);border-radius:12px}
+.plan-item{position:relative;padding-left:44px}
+.plan-item::before{content:"";position:absolute;left:17px;top:0;bottom:0;width:2px;background:var(--line)}
+.plan-item:first-child::before{top:30px}
+.plan-item:last-child::before{bottom:36px}
+.plan-item:only-child::before{display:none}
+.plan-row{position:relative}
+.plan-num{position:absolute;left:-40px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;z-index:1}
+.plan-num.memo{background:var(--surface)!important;border:2px solid var(--line);color:var(--muted);font-size:14px}
+.plan-distrow{margin-left:-44px;width:36px;display:flex;justify-content:center;position:relative;z-index:1}
+.plan-dist{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:1px 7px;white-space:nowrap}
+.plan-card{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:6px 0}
+.plan-card .pc-main{flex:1;min-width:0}
+.plan-card b{display:block;font-size:16px}
+.plan-card .pc-sub{font-size:13px;color:var(--muted)}
+.plan-card .pc-memo{font-size:13px;color:var(--ink);margin-top:4px;white-space:pre-wrap}
+.plan-card.memo-card{background:var(--sea-soft);border-style:dashed}
+.plan-card.memo-card b{font-size:14px;font-weight:500;white-space:pre-wrap}
+.pc-btn{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:6px;border-radius:8px}
+.pc-btn:hover{background:var(--sea-soft);color:var(--ink)}
+.drag{cursor:grab;color:var(--muted);font-size:18px;padding:4px 2px;touch-action:none;user-select:none}
+.plan-view .drag,.plan-view .pc-edit{display:none}
+.pc-acts{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.plan-view .plan-items.empty-drop{display:none}
+@media (max-width:560px){
+  .plan-card{flex-wrap:wrap;row-gap:2px}
+  .plan-card .pc-main{flex:1 1 0;min-width:0}
+  .plan-card .pc-acts{width:100%;justify-content:flex-end;margin:-2px -6px -6px 0}
+  .plan-view .plan-card .pc-acts{width:auto;margin:0}
+  .plan-view .plan-card{flex-wrap:nowrap}
+}
+.sortable-ghost .plan-card{opacity:.35}
+.sortable-chosen .plan-card{box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.plan-add{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.plan-add .btn.ghost{width:100%}
+.plan-view .plan-add{display:none}
+.plan-empty{color:var(--muted);font-size:14px;padding:12px 0 4px 44px}
+.plan-sheet{position:fixed;inset:0;z-index:20;background:rgba(10,25,32,.45);display:flex;align-items:flex-end;justify-content:center}
+.plan-sheet[hidden]{display:none}
+.plan-sheet .ps-box{background:var(--surface);color:var(--ink);width:min(560px,100%);max-height:80vh;display:flex;flex-direction:column;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.plan-sheet{align-items:center}.plan-sheet .ps-box{border-radius:18px}}
+.ps-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.ps-head b{font-size:18px}
+.ps-list{overflow:auto;margin-top:10px;display:grid;gap:6px}
+.ps-list button{text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;border-radius:10px;padding:10px 12px;cursor:pointer}
+.ps-list button:hover{border-color:var(--sea)}
+.ps-list button small{display:block;color:var(--muted);font-size:12px}
+.ps-custom{display:flex;gap:8px;margin-top:8px}
+.ps-custom input{flex:1}
+.plan-locate{outline:3px solid var(--sun)}
+.leaflet-container{font:inherit}
+
+@media (min-width:900px){#planView{max-width:980px}}
 </style>
 </head>
 <body>
@@ -165,8 +899,9 @@ table.grid th{background:var(--sea-soft);white-space:nowrap}
   </header>
 
   <nav class="tabs" id="tabs" hidden role="tablist">
-    <button class="tab" role="tab" aria-selected="true" data-view="form">내 응답</button>
-    <button class="tab" role="tab" aria-selected="false" data-view="dash" id="dashTab">결과 보기</button>
+    <button class="tab" role="tab" aria-selected="true" data-view="form">설문</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="plan" id="planTab">여행일정</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="dash" id="dashTab" hidden>결과 보기</button>
   </nav>
 
   <div class="layout" id="layout">
@@ -209,8 +944,33 @@ table.grid th{background:var(--sea-soft);white-space:nowrap}
   </div>
 
   <main id="dashView" hidden></main>
+  <main id="planView" hidden>
+    <div class="plan-top">
+      <div class="plan-days" id="planDays" role="group" aria-label="날짜 선택"></div>
+      <div class="plan-tools"><span class="status" id="planStatus"></span><button class="btn ghost" type="button" id="planEditBtn">편집</button></div>
+    </div>
+    <div class="plan-auth" id="planAuth" hidden>
+      <input type="password" id="planKey" placeholder="관리자 비밀번호 (결과 페이지와 같음)" autocomplete="current-password">
+      <button class="btn" type="button" id="planKeyBtn">확인</button>
+      <span class="status" id="planKeyMsg" style="color:var(--danger);width:100%"></span>
+    </div>
+    <div class="plan-map" id="planMap"></div>
+    <p class="plan-note" id="planNote">번호 순서대로 점선 경로가 이어져요. 거리는 직선거리입니다.</p>
+    <div id="planList"></div>
+  </main>
+  <div class="plan-sheet" id="planSheet" hidden>
+    <div class="ps-box" role="dialog" aria-modal="true" aria-labelledby="psTitle">
+      <div class="ps-head"><b id="psTitle">장소 추가 · <span id="psDay"></span></b><button type="button" class="pc-btn" id="psClose" aria-label="닫기">✕</button></div>
+      <input type="text" id="psSearch" placeholder="관광지·카페 검색 (예: 해운대, 모모스)">
+      <div class="ps-list" id="psList"></div>
+      <div class="ps-custom"><input type="text" id="psName" placeholder="목록에 없으면 직접 입력 (예: 할매국밥)"><button class="btn" type="button" id="psAdd">직접 추가</button></div>
+    </div>
+  </div>
+
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script>
 /* ===== Vercel 등 외부 호스팅용 저장소 설정 (Supabase) =====
    Supabase → Project Settings → API에서 복사해 붙여넣으세요.
@@ -561,6 +1321,8 @@ $("#tabs").addEventListener("click", e => {
   $("#formView").hidden = b.dataset.view !== "form";
   $("#layout").hidden = b.dataset.view !== "form";
   $("#dashView").hidden = b.dataset.view !== "dash";
+  $("#planView").hidden = b.dataset.view !== "plan";
+  if(b.dataset.view === "plan"){ $("#spotPanel").hidden = true; showPlanTab(); }
   if(b.dataset.view === "dash") $("#spotPanel").hidden = true;
 
 });
@@ -576,10 +1338,253 @@ $("#dashView").addEventListener("click", async e => {
   }
 });
 
+/* ---------- 여행일정 ---------- */
+const DAY_COLORS = ["#11698E", "#E8590C", "#7B5CFA", "#2F9E44"];
+const COORD = {
+ "해운대 해변":[35.1587,129.1604],"광안리·광안대교 야경":[35.1532,129.1186],"해변열차·스카이캡슐 (블루라인파크)":[35.1585,129.1716],
+ "감천문화마을":[35.0975,129.0106],"흰여울문화마을":[35.0786,129.0446],"해동용궁사":[35.1883,129.2233],"송도 해상케이블카":[35.0762,129.0170],
+ "태종대":[35.0532,129.0870],"자갈치·국제시장":[35.0985,129.0300],"BIFF 광장":[35.0982,129.0281],"더베이101·마린시티":[35.1567,129.1520],
+ "엑스더스카이 전망대":[35.1604,129.1690],"부산타워·용두산공원":[35.1009,129.0324],"아난티 코브":[35.1977,129.2245],"스카이라인 루지":[35.1937,129.2128],
+ "롯데월드 부산":[35.1960,129.2120],"요트 투어":[35.1625,129.1365],"오륙도 스카이워크":[35.1006,129.1236]
+};
+const CAFE_COORD = {
+ "웨이브온 커피":[35.3214,129.2660],"오프오":[35.2410,129.2250,1],"캐비네 드 쁘아송":[35.1977,129.2245],"그릿비 일광":[35.2600,129.2340,1],
+ "힌터그룬트":[35.1556,129.0640,1],"카첸슈프룽":[35.1548,129.0648,1],"유어타입":[35.1557,129.0637,1],"베르크 로스터스":[35.1552,129.0655,1],
+ "모모스커피 영도 로스터리 & 커피바":[35.0905,129.0400],"피아크 카페 & 베이커리":[35.0786,129.0788,1],"신기숲":[35.0830,129.0570,1],"해빙모먼트":[35.0750,129.0650,1],
+ "신세계 센텀시티 백화점":[35.1690,129.1296],"스파랜드":[35.1689,129.1300],"신세계 센텀시티몰":[35.1700,129.1306],"롯데백화점 센텀시티점":[35.1693,129.1318],
+ "딥플로우":[35.1636,129.1585,1],"로우 & 스윗":[35.1641,129.1580,1],"금송덕미":[35.1633,129.1590,1],"타카카":[35.1630,129.1578,1]
+};
+const PLACES = [
+  {n:"서면 숙소", cat:"숙소", area:"부산진구 서면", lat:35.1577, lng:129.0596},
+  {n:"부산역", cat:"교통", area:"동구", lat:35.1151, lng:129.0422},
+  {n:"김해국제공항", cat:"교통", area:"강서구", lat:35.1795, lng:128.9382},
+  ...Object.keys(SPOT).map(n => ({n, cat:"관광명소", area:SPOT[n].area, lat:COORD[n]?.[0], lng:COORD[n]?.[1]})),
+  ...Object.entries(CAFE).flatMap(([g, c]) => c.list.map(x => { const k = CAFE_COORD[x.n] || []; return {n:x.n, cat:g === "신세계 센텀시티" ? "쇼핑" : "카페", area:g, lat:k[0], lng:k[1], approx:!!k[2]}; }))
+];
+const DEFAULT_PLAN = () => ({days:[{label:"Day 1", date:"10/31 (토)", items:[]},{label:"Day 2", date:"11/1 (일)", items:[]}], updatedAt:0});
+
+let plan = null, planDay = -1, planEdit = false, planMap = null, planLayer = null, planLoaded = false, planTimer = null, planSaveTick = null, locateId = null, sheetDay = 0;
+const pid = () => Math.random().toString(36).slice(2, 10);
+const LS_PLAN = "busan_plan_v1";
+
+function kmBetween(a, b){
+  const R = 6371, t = x => x * Math.PI / 180;
+  const dLat = t(b.lat - a.lat), dLng = t(b.lng - a.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(t(a.lat)) * Math.cos(t(b.lat)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const hasGeo = it => it.type !== "memo" && typeof it.lat === "number" && typeof it.lng === "number";
+
+/* storage */
+async function planFetch(){
+  if(mode === "claude"){ const s = await db.doc("plan/main").get(); return s.exists ? s.data().plan : null; }
+  if(mode === "supa"){ return await rpc("get_itinerary", {}); }
+  try{ return JSON.parse(localStorage.getItem(LS_PLAN) || "null"); }catch(_){ return null; }
+}
+async function planStore(){
+  plan.updatedAt = Date.now();
+  try{ localStorage.setItem(LS_PLAN, JSON.stringify(plan)); }catch(_){}
+  if(mode === "claude") return db.doc("plan/main").set({plan});
+  if(mode === "supa") return rpc("save_itinerary", {p_key: ADMIN, p_data: plan});
+}
+function planSave(){
+  clearTimeout(planSaveTick);
+  $("#planStatus").textContent = "저장 중…";
+  planSaveTick = setTimeout(async () => {
+    try{ await planStore(); $("#planStatus").textContent = mode === "none" ? "이 기기에만 저장됐어요" : "저장됨"; }
+    catch(e){ $("#planStatus").textContent = String(e.message || e).includes("function") ? "일정 저장소가 아직 없어요 (SQL 실행 필요)" : "저장 실패 · 이 기기에만 임시 저장"; }
+  }, 400);
+}
+async function planLoad(){
+  try{ const d = await planFetch(); plan = d && d.days ? d : (plan || DEFAULT_PLAN()); }
+  catch(_){ if(!plan){ try{ plan = JSON.parse(localStorage.getItem(LS_PLAN) || "null"); }catch(__){} } plan = plan || DEFAULT_PLAN(); }
+  planLoaded = true; renderPlan();
+}
+
+/* edit permission */
+async function canEditPlan(){
+  if(mode === "claude") return isOwner;
+  if(mode === "none") return true;
+  if(!ADMIN) return false;
+  try{ return await rpc("check_admin", {p_key: ADMIN}); }catch(_){ return false; }
+}
+async function toggleEdit(){
+  if(planEdit){ planEdit = false; renderPlan(); return; }
+  if(await canEditPlan()){ planEdit = true; $("#planAuth").hidden = true; renderPlan(); return; }
+  if(mode === "claude"){ $("#planStatus").textContent = "일정 편집은 만든 사람만 할 수 있어요"; return; }
+  $("#planAuth").hidden = false; $("#planKey").focus();
+}
+async function submitPlanKey(){
+  const k = $("#planKey").value.trim(); if(!k) return;
+  const prev = ADMIN; ADMIN = k;
+  let ok = false; try{ ok = await rpc("check_admin", {p_key: k}); }catch(_){}
+  if(!ok){ ADMIN = prev; $("#planKeyMsg").textContent = "비밀번호가 맞지 않거나, 일정용 SQL이 아직 실행되지 않았어요."; return; }
+  try{ sessionStorage.setItem("busan_admin", k); }catch(_){}
+  $("#planAuth").hidden = true; $("#planKeyMsg").textContent = ""; planEdit = true; renderPlan();
+}
+
+/* render */
+function renderPlan(){
+  if(!plan) return;
+  const v = $("#planView");
+  v.classList.toggle("plan-view", !planEdit);
+  $("#planEditBtn").textContent = planEdit ? "편집 완료" : "편집";
+  $("#planDays").innerHTML = `<button type="button" data-d="-1" aria-pressed="${planDay === -1}">전체</button>` +
+    plan.days.map((d, i) => `<button type="button" data-d="${i}" aria-pressed="${planDay === i}"><i style="background:${DAY_COLORS[i % 4]}"></i>${esc(d.label)} <small>${esc(d.date)}</small></button>`).join("");
+  const days = plan.days.map((d, i) => [d, i]).filter(([, i]) => planDay === -1 || planDay === i);
+  $("#planList").innerHTML = days.map(([d, i]) => {
+    let n = 0, prev = null;
+    const items = d.items.map(it => {
+      const geo = hasGeo(it);
+      let dist = "";
+      if(geo){ if(prev) dist = `<div class="plan-distrow"><span class="plan-dist">${kmBetween(prev, it).toFixed(1)}km</span></div>`; prev = it; n++; }
+      const num = it.type === "memo" ? `<span class="plan-num memo">✎</span>` : `<span class="plan-num" style="background:${geo ? DAY_COLORS[i % 4] : "#9aa9b1"}">${geo ? n : "?"}</span>`;
+      const card = it.type === "memo"
+        ? `<div class="plan-card memo-card"><span class="drag" title="끌어서 순서 변경">⋮⋮</span><div class="pc-main"><b>${esc(it.text)}</b></div>
+             <div class="pc-acts pc-edit"><button type="button" class="pc-btn" data-act="memo" data-id="${it.id}">수정</button><button type="button" class="pc-btn" data-act="del" data-id="${it.id}" aria-label="삭제">✕</button></div></div>`
+        : `<div class="plan-card"><span class="drag" title="끌어서 순서 변경">⋮⋮</span>
+             <div class="pc-main"><b>${esc(it.name)}</b><div class="pc-sub">${esc(it.cat || "나만의 장소")}${it.area ? " · " + esc(it.area) : ""}${it.approx ? " · 위치 대략" : ""}${geo ? "" : " · 지도 위치 없음"}</div>${it.memo ? `<div class="pc-memo">${esc(it.memo)}</div>` : ""}</div>
+             <div class="pc-acts">${geo ? "" : `<button type="button" class="pc-btn pc-edit" data-act="locate" data-id="${it.id}">📍위치</button>`}
+             <button type="button" class="pc-btn pc-edit" data-act="note" data-id="${it.id}">메모</button>
+             <a class="pc-btn" href="https://search.naver.com/search.naver?query=${enc("부산 " + it.name)}" target="_blank" rel="noopener">검색↗</a>
+             <button type="button" class="pc-btn pc-edit" data-act="del" data-id="${it.id}" aria-label="삭제">✕</button></div></div>`;
+      return `<li class="plan-item" data-id="${it.id}">${dist}<div class="plan-row">${num}${card}</div></li>`;
+    }).join("");
+    return `<section class="plan-day"><h3 class="plan-day-h"><i style="background:${DAY_COLORS[i % 4]}"></i>${esc(d.label)} <small>${esc(d.date)}</small></h3>
+      <ul class="plan-items${d.items.length ? "" : " empty-drop"}" data-day="${i}">${items}</ul>
+      ${d.items.length ? "" : `<p class="plan-empty">${planEdit ? "아래 버튼으로 장소를 추가하거나 다른 날에서 끌어오세요." : "아직 일정이 없어요."}</p>`}
+      <div class="plan-add"><button type="button" class="btn ghost" data-act="add" data-day="${i}">＋ 장소 추가</button><button type="button" class="btn ghost" data-act="addmemo" data-day="${i}">＋ 메모 추가</button></div></section>`;
+  }).join("");
+  if(planEdit && window.Sortable){
+    document.querySelectorAll(".plan-items").forEach(ul => new Sortable(ul, {
+      group: "plan", handle: ".drag", animation: 150, ghostClass: "sortable-ghost", chosenClass: "sortable-chosen",
+      forceFallback: true, fallbackTolerance: 3, onEnd: syncFromDom
+    }));
+  }
+  renderMap();
+}
+function findItem(id){
+  for(const d of plan.days){ const i = d.items.findIndex(x => x.id === id); if(i > -1) return [d, i]; }
+  return [null, -1];
+}
+function syncFromDom(){
+  const all = {}; plan.days.forEach(d => d.items.forEach(it => all[it.id] = it));
+  document.querySelectorAll(".plan-items").forEach(ul => {
+    const di = +ul.dataset.day;
+    plan.days[di].items = [...ul.querySelectorAll(":scope > .plan-item")].map(li => all[li.dataset.id]).filter(Boolean);
+  });
+  renderPlan(); planSave();
+}
+
+/* map */
+function renderMap(){
+  const box = $("#planMap");
+  if(!window.L){ box.innerHTML = '<div class="map-msg">지도를 불러오지 못했어요. 인터넷 연결을 확인해주세요.</div>'; return; }
+  if(!planMap){
+    planMap = L.map(box, {zoomControl: true, scrollWheelZoom: false}).setView([35.15, 129.07], 11);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(planMap);
+    planLayer = L.layerGroup().addTo(planMap);
+    planMap.on("click", e => {
+      if(!locateId) return;
+      const [d, i] = findItem(locateId); locateId = null; box.classList.remove("plan-locate");
+      if(d){ d.items[i].lat = +e.latlng.lat.toFixed(5); d.items[i].lng = +e.latlng.lng.toFixed(5); renderPlan(); planSave(); }
+    });
+  }
+  planLayer.clearLayers();
+  const pts = [];
+  plan.days.forEach((d, i) => {
+    if(planDay !== -1 && planDay !== i) return;
+    const geo = d.items.filter(hasGeo), col = DAY_COLORS[i % 4];
+    geo.forEach((it, k) => {
+      const m = L.marker([it.lat, it.lng], {icon: L.divIcon({className: "", html: `<div class="pin" style="background:${col}">${k + 1}</div>`, iconSize: [28, 28], iconAnchor: [14, 14]})});
+      m.bindTooltip(`${d.label} · ${k + 1}. ${it.name}`); planLayer.addLayer(m); pts.push([it.lat, it.lng]);
+    });
+    if(geo.length > 1) planLayer.addLayer(L.polyline(geo.map(x => [x.lat, x.lng]), {color: col, weight: 3, dashArray: "6 6", opacity: .9}));
+  });
+  setTimeout(() => {
+    planMap.invalidateSize();
+    if(pts.length > 1) planMap.fitBounds(pts, {padding: [36, 36], maxZoom: 15});
+    else if(pts.length === 1) planMap.setView(pts[0], 14);
+    else planMap.setView([35.15, 129.07], 11);
+  }, 30);
+}
+
+/* add sheet */
+function openSheet(day){
+  sheetDay = day;
+  $("#psDay").textContent = `${plan.days[day].label} ${plan.days[day].date}`;
+  $("#psSearch").value = ""; fillSheet(""); $("#planSheet").hidden = false;
+  setTimeout(() => $("#psSearch").focus(), 50);
+}
+function fillSheet(q){
+  q = q.trim();
+  const list = PLACES.filter(p => !q || (p.n + p.area + p.cat).includes(q)).slice(0, 60);
+  $("#psList").innerHTML = list.map((p, k) => `<button type="button" data-k="${PLACES.indexOf(p)}"><b>${esc(p.n)}</b><small>${esc(p.cat)} · ${esc(p.area)}</small></button>`).join("") ||
+    `<p class="plan-empty" style="padding-left:0">목록에 없어요. 아래에 직접 입력해 추가하세요.</p>`;
+  $("#psName").value = q;
+}
+async function geocode(name){
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=kr&accept-language=ko&q=${enc(name + " 부산")}`);
+    const j = await r.json(); if(j[0]) return {lat: +(+j[0].lat).toFixed(5), lng: +(+j[0].lon).toFixed(5)};
+  }catch(_){}
+  return null;
+}
+async function addPlace(p){
+  plan.days[sheetDay].items.push({id: pid(), type: "place", name: p.n, cat: p.cat, area: p.area, lat: p.lat, lng: p.lng, approx: p.approx || undefined});
+  $("#planSheet").hidden = true; renderPlan(); planSave();
+}
+async function addCustom(){
+  const n = $("#psName").value.trim(); if(!n) return;
+  const btn = $("#psAdd"); btn.disabled = true; btn.textContent = "위치 찾는 중…";
+  const g = await geocode(n);
+  btn.disabled = false; btn.textContent = "직접 추가";
+  plan.days[sheetDay].items.push({id: pid(), type: "place", name: n, cat: "나만의 장소", area: "", lat: g?.lat, lng: g?.lng});
+  $("#planSheet").hidden = true; renderPlan(); planSave();
+  if(!g) $("#planStatus").textContent = "위치를 못 찾았어요. 카드의 📍위치를 눌러 지도에서 찍어주세요.";
+}
+
+/* events */
+function initPlanEvents(){
+  $("#planEditBtn").addEventListener("click", toggleEdit);
+  $("#planKeyBtn").addEventListener("click", submitPlanKey);
+  $("#planKey").addEventListener("keydown", e => { if(e.key === "Enter") submitPlanKey(); });
+  $("#planDays").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if(!b) return; planDay = +b.dataset.d; renderPlan(); });
+  $("#planList").addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if(!b) return;
+    const act = b.dataset.act;
+    if(act === "add") return openSheet(+b.dataset.day);
+    if(act === "addmemo"){
+      const t = prompt("메모 내용 (예: 점심 12시 돼지국밥, 택시 이동)"); if(!t || !t.trim()) return;
+      plan.days[+b.dataset.day].items.push({id: pid(), type: "memo", text: t.trim()}); renderPlan(); planSave(); return;
+    }
+    const [d, i] = findItem(b.dataset.id); if(!d) return;
+    const it = d.items[i];
+    if(act === "del"){ if(confirm(`'${it.name || it.text}'을(를) 일정에서 뺄까요?`)){ d.items.splice(i, 1); renderPlan(); planSave(); } }
+    if(act === "memo"){ const t = prompt("메모 수정", it.text); if(t != null && t.trim()){ it.text = t.trim(); renderPlan(); planSave(); } }
+    if(act === "note"){ const t = prompt(`'${it.name}' 메모 (시간, 예약 정보 등)`, it.memo || ""); if(t != null){ it.memo = t.trim(); renderPlan(); planSave(); } }
+    if(act === "locate"){ locateId = it.id; $("#planMap").classList.add("plan-locate"); $("#planStatus").textContent = `지도에서 '${it.name}' 위치를 눌러주세요`; $("#planMap").scrollIntoView({behavior: "smooth", block: "center"}); }
+  });
+  $("#psClose").addEventListener("click", () => $("#planSheet").hidden = true);
+  $("#planSheet").addEventListener("click", e => { if(e.target.id === "planSheet") $("#planSheet").hidden = true; });
+  $("#psSearch").addEventListener("input", e => fillSheet(e.target.value));
+  $("#psList").addEventListener("click", e => { const b = e.target.closest("[data-k]"); if(b) addPlace(PLACES[+b.dataset.k]); });
+  $("#psAdd").addEventListener("click", addCustom);
+  $("#psName").addEventListener("keydown", e => { if(e.key === "Enter") addCustom(); });
+}
+function showPlanTab(){
+  if(!planLoaded) planLoad(); else renderPlan();
+  clearInterval(planTimer);
+  if(mode === "claude") $("#planNote").textContent = "Claude 미리보기에서는 지도 배경 타일이 막혀 보이지 않아요. 배포 사이트에서는 정상으로 보입니다.";
+  if(mode !== "none") planTimer = setInterval(() => { if(!planEdit && !$("#planView").hidden) planLoad(); }, 20000);
+}
+initPlanEvents();
+
 /* ---------- init ---------- */
 buildForm();
 (async () => {
   const st = $("#status");
+  if(!RESULTS_PAGE) $("#tabs").hidden = false;
   try{
     if(!window.claude || !claude.use){
       if(!SUPABASE_URL || !SUPABASE_ANON_KEY){ st.textContent = "저장 기능 없이 열렸어요. 작성 후 저장을 누르면 복사용 텍스트가 나옵니다."; return; }
@@ -614,7 +1619,7 @@ buildForm();
       }catch(_){}
     }
     if(isOwner){
-      $("#tabs").hidden = false;
+      $("#dashTab").hidden = false;
       db.collection("responses").orderBy("updatedAt").onSnapshot(s => {
         responses = s.docs.map(x => ({id: x.id, ...x.data()}));
         renderDash();
