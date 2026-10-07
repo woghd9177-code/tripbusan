@@ -881,6 +881,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .ps-list button{text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;border-radius:10px;padding:10px 12px;cursor:pointer}
 .ps-list button:hover{border-color:var(--sea)}
 .ps-list button small{display:block;color:var(--muted);font-size:12px}
+.ps-sec{margin:8px 2px 0;font-size:12px;font-weight:700;color:var(--muted)}
+.ps-src{margin:2px;font-size:11px;color:var(--muted);text-align:right}
+#psMap{display:grid;gap:6px}
 .ps-custom{display:flex;gap:8px;margin-top:8px}
 .ps-custom input{flex:1}
 .plan-locate{outline:3px solid var(--sun)}
@@ -961,7 +964,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   <div class="plan-sheet" id="planSheet" hidden>
     <div class="ps-box" role="dialog" aria-modal="true" aria-labelledby="psTitle">
       <div class="ps-head"><b id="psTitle">장소 추가 · <span id="psDay"></span></b><button type="button" class="pc-btn" id="psClose" aria-label="닫기">✕</button></div>
-      <input type="text" id="psSearch" placeholder="관광지·카페 검색 (예: 해운대, 모모스)">
+      <input type="text" id="psSearch" placeholder="장소 검색 (예: 해운대, 모모스, 해운대 소고기)">
       <div class="ps-list" id="psList"></div>
       <div class="ps-custom"><input type="text" id="psName" placeholder="목록에 없으면 직접 입력 (예: 할매국밥)"><button class="btn" type="button" id="psAdd">직접 추가</button></div>
     </div>
@@ -977,6 +980,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
    비워두면 저장 없이 복사용 텍스트만 나옵니다. */
 const SUPABASE_URL = "https://okppavcxjypibazbqcub.supabase.co";       // 예: https://abcdxyz.supabase.co
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rcHBhdmN4anlwaWJhemJxY3ViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzMzYzNDEsImV4cCI6MjEwNjkxMjM0MX0.xe8tlDyy63oIbJf7liGtZRpbDBIcoUmmwyzi8Q5Ucz0";  // Publishable key(sb_publishable_…) 또는 legacy anon 키
+const KAKAO_JS_KEY = "";       // 카카오 지도 장소 검색용 JavaScript 키 (없으면 OpenStreetMap 검색 사용)
 /* ========================================================= */
 const TOTAL = 7;
 const Q = [
@@ -1446,7 +1450,7 @@ function renderPlan(){
              <div class="pc-main"><b>${esc(it.name)}</b><div class="pc-sub">${esc(it.cat || "나만의 장소")}${it.area ? " · " + esc(it.area) : ""}${it.approx ? " · 위치 대략" : ""}${geo ? "" : " · 지도 위치 없음"}</div>${it.memo ? `<div class="pc-memo">${esc(it.memo)}</div>` : ""}</div>
              <div class="pc-acts">${geo ? "" : `<button type="button" class="pc-btn pc-edit" data-act="locate" data-id="${it.id}">📍위치</button>`}
              <button type="button" class="pc-btn pc-edit" data-act="note" data-id="${it.id}">메모</button>
-             <a class="pc-btn" href="https://search.naver.com/search.naver?query=${enc("부산 " + it.name)}" target="_blank" rel="noopener">검색↗</a>
+             ${it.link ? `<a class="pc-btn" href="${esc(it.link)}" target="_blank" rel="noopener">지도↗</a>` : ""}<a class="pc-btn" href="https://search.naver.com/search.naver?query=${enc("부산 " + it.name)}" target="_blank" rel="noopener">검색↗</a>
              <button type="button" class="pc-btn pc-edit" data-act="del" data-id="${it.id}" aria-label="삭제">✕</button></div></div>`;
       return `<li class="plan-item" data-id="${it.id}">${dist}<div class="plan-row">${num}${card}</div></li>`;
     }).join("");
@@ -1516,12 +1520,55 @@ function openSheet(day){
   $("#psSearch").value = ""; fillSheet(""); $("#planSheet").hidden = false;
   setTimeout(() => $("#psSearch").focus(), 50);
 }
+let mapHits = [], searchSeq = 0, searchTick = null, kakaoReady = null;
+function loadKakao(){
+  if(!KAKAO_JS_KEY) return Promise.resolve(false);
+  if(kakaoReady) return kakaoReady;
+  kakaoReady = new Promise(res => {
+    const sc = document.createElement("script");
+    sc.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}&libraries=services&autoload=false`;
+    sc.onload = () => { try{ kakao.maps.load(() => res(true)); }catch(_){ res(false); } };
+    sc.onerror = () => res(false);
+    document.head.appendChild(sc);
+    setTimeout(() => res(false), 6000);
+  });
+  return kakaoReady;
+}
+async function searchKakao(q){
+  if(!(await loadKakao()) || !window.kakao?.maps?.services) return null;
+  return new Promise(res => {
+    new kakao.maps.services.Places().keywordSearch(q, (data, status) => {
+      if(status !== kakao.maps.services.Status.OK) return res(status === kakao.maps.services.Status.ZERO_RESULT ? [] : null);
+      res(data.map(d => ({n: d.place_name, cat: (d.category_name || "").split(" > ").pop() || "장소", area: d.road_address_name || d.address_name, lat: +(+d.y).toFixed(5), lng: +(+d.x).toFixed(5), link: d.place_url})));
+    }, {rect: "128.75,34.95,129.35,35.40", size: 10});
+  });
+}
+async function searchOSM(q){
+  try{
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=8&countrycodes=kr&accept-language=ko&viewbox=128.75,35.40,129.35,34.95&bounded=1&q=${enc(q)}`);
+    const j = await r.json();
+    return j.map(d => ({n: d.name || d.display_name.split(",")[0], cat: ({restaurant:"음식점",fast_food:"음식점",food_court:"음식점",cafe:"카페",bar:"술집",pub:"술집",attraction:"관광명소",viewpoint:"전망대",museum:"박물관",hotel:"숙소",beach:"해변",station:"역",mall:"쇼핑",department_store:"쇼핑",marketplace:"시장"})[d.type] || "장소", area: d.display_name.split(",").slice(1, 4).join(",").trim(), lat: +(+d.lat).toFixed(5), lng: +(+d.lon).toFixed(5)}));
+  }catch(_){ return null; }
+}
+function sheetRow(p, attr){ return `<button type="button" ${attr}><b>${esc(p.n)}</b><small>${esc(p.cat)}${p.area ? " · " + esc(p.area) : ""}</small></button>`; }
 function fillSheet(q){
   q = q.trim();
-  const list = PLACES.filter(p => !q || (p.n + p.area + p.cat).includes(q)).slice(0, 60);
-  $("#psList").innerHTML = list.map((p, k) => `<button type="button" data-k="${PLACES.indexOf(p)}"><b>${esc(p.n)}</b><small>${esc(p.cat)} · ${esc(p.area)}</small></button>`).join("") ||
-    `<p class="plan-empty" style="padding-left:0">목록에 없어요. 아래에 직접 입력해 추가하세요.</p>`;
+  const list = PLACES.filter(p => !q || (p.n + p.area + p.cat).includes(q)).slice(0, q ? 20 : 60);
+  const local = list.map(p => sheetRow(p, `data-k="${PLACES.indexOf(p)}"`)).join("");
   $("#psName").value = q;
+  if(!q){ $("#psList").innerHTML = local; return; }
+  $("#psList").innerHTML = (local ? `<p class="ps-sec">추천 목록</p>${local}` : "") + `<p class="ps-sec">지도 검색</p><div id="psMap"><p class="plan-empty" style="padding-left:0">검색 중…</p></div>`;
+  clearTimeout(searchTick);
+  const seq = ++searchSeq;
+  searchTick = setTimeout(async () => {
+    let hits = await searchKakao(q), src = "카카오맵";
+    if(hits === null){ hits = await searchOSM(q); src = "OpenStreetMap"; }
+    if(seq !== searchSeq || !$("#psMap")) return;
+    mapHits = hits || [];
+    $("#psMap").innerHTML = mapHits.length
+      ? mapHits.map((p, i) => sheetRow(p, `data-h="${i}"`)).join("") + `<p class="ps-src">검색: ${src}</p>`
+      : `<p class="plan-empty" style="padding-left:0">${hits === null ? "지도 검색에 연결하지 못했어요." : "지도에서도 찾지 못했어요."} 아래에 직접 입력해 추가하고 📍위치로 지정할 수 있어요.</p>`;
+  }, 350);
 }
 async function geocode(name){
   try{
@@ -1531,7 +1578,7 @@ async function geocode(name){
   return null;
 }
 async function addPlace(p){
-  plan.days[sheetDay].items.push({id: pid(), type: "place", name: p.n, cat: p.cat, area: p.area, lat: p.lat, lng: p.lng, approx: p.approx || undefined});
+  plan.days[sheetDay].items.push({id: pid(), type: "place", name: p.n, cat: p.cat, area: p.area, lat: p.lat, lng: p.lng, approx: p.approx || undefined, link: p.link || undefined});
   $("#planSheet").hidden = true; renderPlan(); planSave();
 }
 async function addCustom(){
@@ -1568,7 +1615,10 @@ function initPlanEvents(){
   $("#psClose").addEventListener("click", () => $("#planSheet").hidden = true);
   $("#planSheet").addEventListener("click", e => { if(e.target.id === "planSheet") $("#planSheet").hidden = true; });
   $("#psSearch").addEventListener("input", e => fillSheet(e.target.value));
-  $("#psList").addEventListener("click", e => { const b = e.target.closest("[data-k]"); if(b) addPlace(PLACES[+b.dataset.k]); });
+  $("#psList").addEventListener("click", e => {
+    const b = e.target.closest("[data-k],[data-h]"); if(!b) return;
+    addPlace(b.dataset.k != null ? PLACES[+b.dataset.k] : mapHits[+b.dataset.h]);
+  });
   $("#psAdd").addEventListener("click", addCustom);
   $("#psName").addEventListener("keydown", e => { if(e.key === "Enter") addCustom(); });
 }
